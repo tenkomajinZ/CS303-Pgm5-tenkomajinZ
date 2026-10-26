@@ -1,0 +1,226 @@
+diff --git a/Functions.java b/Functions.java
+index 2f5a5da..b36fba4 100644
+--- a/Functions.java
++++ b/Functions.java
+@@ -53,11 +53,19 @@ public class Functions {
+ 
+ 	}
+ 
++    // PRE: out is an open PrintWriter.
++    // POST: writes the supplied decimal conversions to console and report.
+     public static void testDecToBinary(PrintWriter out) {
+         System.out.println("\nSTACK 4: DECIMAL TO BINARY EVALUATOR");
+         out.println("\nSTACK 4: DECIMAL TO BINARY EVALUATOR");
+ 
+         ArrayList<Integer> binary = new ArrayList<>(Arrays.asList(15, 81, 105, 255, 256, 0, 1 ));
++        for (int number : binary) {
++            String result = "The decimal value " + number + " is "
++                    + decToBinary(number) + " in binary";
++            System.out.println(result);
++            out.println(result);
++        }
+  
+     }
+ 
+@@ -75,13 +83,86 @@ public class Functions {
+             "([x + y] + z}"));
+     }
+ 
++    // PRE: out is an open PrintWriter.
++    // POST: writes the supplied undo/redo results to console and report.
+     public static void testUndoRedo(PrintWriter out) {
+         System.out.println("\nSTACK 6: UNDO REDO FUNCTION EVALUATOR");
+         out.println("\nSTACK 6: UNDO REDO FUNCTION EVALUATOR");
+ 
+         ArrayList<String> expList = new ArrayList<>(Arrays.asList(
+             "D add a", "D add b", "D add c", "R", "U","U","R","U","D add d", "U", "U", "U", "R", "F", "Q"));
++        MyStack<String> undoStack = new MyStack<>();
++        MyStack<String> redoStack = new MyStack<>();
++
++        for (String command : expList) {
++            String result = undoRedo(command, undoStack, redoStack);
++            System.out.println(result);
++            out.println(result);
++            if (command.trim().equals("Q")) {
++                break;
++            }
++        }
++
++    }
++
++    // PRE: number is a nonnegative integer.
++    // POST: returns its binary digits; rejects negative input.
++    public static String decToBinary(int number) {
++        if (number < 0) {
++            throw new IllegalArgumentException("Decimal value must be nonnegative");
++        }
++        if (number == 0) {
++            return "0";
++        }
++
++        MyStack<Integer> remainders = new MyStack<>();
++        while (number > 0) {
++            remainders.push(number % 2);
++            number = number / 2;
++        }
+ 
++        // The stack reverses the remainders into the correct digit order.
++        String result = "";
++        while (!remainders.isEmpty()) {
++            result += remainders.pop();
++        }
++        return result;
+     }
+ 
++    // PRE: input is non-null; undoStack and redoStack are separate stacks.
++    // POST: updates command history and returns the matching report message.
++    //       D clears redo history; U and R move the most recent action.
++    //       Q returns the ending message so the caller can stop processing.
++    public static String undoRedo(String input, MyStack<String> undoStack,
++                                  MyStack<String> redoStack) {
++        String command = input.trim();
++        if (command.startsWith("D ") && !command.substring(2).trim().isEmpty()) {
++            String action = command.substring(2).trim();
++            undoStack.push(action);
++            redoStack.clear();
++            return "performing: " + action;
++        }
++        else if (command.equals("U")) {
++            if (undoStack.isEmpty()) {
++                return "undo: stack is empty";
++            }
++            String action = undoStack.pop();
++            redoStack.push(action);
++            return "undoing: command: " + action;
++        }
++        else if (command.equals("R")) {
++            if (redoStack.isEmpty()) {
++                return "redo: stack is empty";
++            }
++            String action = redoStack.pop();
++            undoStack.push(action);
++            return "redoing: command: " + action;
++        }
++        else if (command.equals("Q")) {
++            return "program ending";
++        }
++        else {
++            return "invalid command entered: " + input;
++        }
++    }
+ }
+diff --git a/Main.java b/Main.java
+index a669b60..8de4cfa 100644
+--- a/Main.java
++++ b/Main.java
+@@ -2,8 +2,15 @@ import java.io.PrintWriter;
+ import java.io.IOException;
+ 
+ public class Main {
++    // Contributor: tenkomajinZ
++    // Responsible for e. Decimal to Binary and f. Undo/Redo Command Processor.
++    // Shared support: MyStack methods used by e and f.
++    // Sources: CS303 Program 5.docx; D:\CS303Lecture9\MyDblLinkedList.java;
++    // D:\CS303Lecture10\MyArrayDeque.java (stack operation examples).
+ 
+ 
++    // PRE: report.txt can be created in the current folder.
++    // POST: runs the starter test methods and writes their output to report.txt.
+     public static void main(String[] args) {
+ 
+         try{
+diff --git a/MyStack.java b/MyStack.java
+index ea55dac..77d8e8b 100644
+--- a/MyStack.java
++++ b/MyStack.java
+@@ -3,4 +3,56 @@ public class MyStack<E extends Comparable<? super E>> {
+     private final MyDblLinkedList<E> list = new MyDblLinkedList<E>();
+ 
+     //ADD ALL STACK FUNCTIONS
++    // The tail of the lecture's doubly linked list is the top of the stack.
++
++    // PRE: item has type E.
++    // POST: adds item to the top and increases the size by one.
++    public void push(E item) {
++        list.addLast(item);
++    }
++
++    // PRE: none.
++    // POST: removes and returns the top item; throws if the stack is empty.
++    public E pop() {
++        if (isEmpty()) {
++            throw new IllegalStateException("Stack is empty");
++        }
++        return list.removeLast();
++    }
++
++    // PRE: none.
++    // POST: returns the top item without removing it; throws if empty.
++    public E peek() {
++        if (isEmpty()) {
++            throw new IllegalStateException("Stack is empty");
++        }
++        return list.getLast();
++    }
++
++    // PRE: none.
++    // POST: returns the number of items without changing the stack.
++    public int size() {
++        return list.size();
++    }
++
++    // PRE: none.
++    // POST: returns true if the stack contains no items.
++    public boolean isEmpty() {
++        return list.isEmpty();
++    }
++
++    // PRE: none.
++    // POST: removes all items from the stack.
++    public void clear() {
++        list.clear();
++    }
++
++    // PRE: none.
++    // POST: returns the items from bottom to top without changing the stack.
++    public String stackString() {
++        if (isEmpty()) {
++            return "[]";
++        }
++        return list.toString();
++    }
+ }
+diff --git a/report.txt b/report.txt
+index 5f9262d..0c098f4 100644
+--- a/report.txt
++++ b/report.txt
+@@ -6,5 +6,29 @@ STACK 2: POSTFIX EVALUATOR
+ STACK 3: PREFIX EVALUATOR
+ 
+ STACK 4: DECIMAL TO BINARY EVALUATOR
++The decimal value 15 is 1111 in binary
++The decimal value 81 is 1010001 in binary
++The decimal value 105 is 1101001 in binary
++The decimal value 255 is 11111111 in binary
++The decimal value 256 is 100000000 in binary
++The decimal value 0 is 0 in binary
++The decimal value 1 is 1 in binary
+ 
+ STACK 5: PARENTHESIS IS BALANCED EVALUATOR
++
++STACK 6: UNDO REDO FUNCTION EVALUATOR
++performing: add a
++performing: add b
++performing: add c
++redo: stack is empty
++undoing: command: add c
++undoing: command: add b
++redoing: command: add b
++undoing: command: add b
++performing: add d
++undoing: command: add d
++undoing: command: add a
++undo: stack is empty
++redoing: command: add a
++invalid command entered: F
++program ending
